@@ -25,84 +25,112 @@ import {
   useSpring,
 } from "./kit";
 
-/** Tổng thời lượng ≈ 39.7s @30fps */
-export const A_FRAMES = 365; // footage chính thức 1 (12.17s), giữ nguyên
-export const B_FRAMES = 503; // footage chính thức 2 (16.77s), giữ nguyên
+/* ================================================================== */
+/* THỜI GIAN                                                           */
+/* ================================================================== */
+export const A_FRAMES = 365; // footage chính thức 1 (12.17s) — giữ nguyên
+export const B_FRAMES = 503; // footage chính thức 2 (16.77s) — giữ nguyên
 export const A_START = s(9.24);
 export const B_START = A_START + A_FRAMES;
-export const HOLD = 45; // giữ khung cuối 1.5s cho end card
+export const HOLD = 45; // giữ khung cuối 1.5s cho phần kêu gọi
 export const TOTAL_FRAMES = B_START + B_FRAMES + HOLD;
 const END = TOTAL_FRAMES / 30;
 
+/** Khung chiếu: rộng tối đa 1080 (hết bề ngang), cao 608 = đúng 16:9 */
+const CARD_TOP = 570;
+const CARD_H = 608;
+
+/** Mốc bắt đầu từng từ trong voice (giây), canh theo đường năng lượng âm thanh */
+const W = {
+  da: 0.1, noi: 0.26, la: 0.46,
+  dung1: 0.68, dung2: 0.93, pe1: 1.2, pe2: 1.44, te: 1.7,
+  tren: 2.0, hoc: 2.23, lieu: 2.46, roi: 2.62,
+  ma: 3.32, khong: 3.6, chiu: 3.84, nghe: 4.28,
+  ket: 4.52, qua: 4.8, thi: 5.15,
+  tiet: 6.34, day: 6.49, chua: 6.82, dat: 7.37,
+  chuan: 7.8, bi: 7.99, so: 8.26, sai: 8.46,
+  thoi: 9.24, dung3: 9.49, lo: 9.7,
+  muon: 10.24, dau: 10.6, tu: 10.75, tiet2: 10.89, day2: 11.21, thi2: 11.66,
+  lien: 12.42, he: 12.78, tui: 13.02,
+};
+/** frame (tương đối chunk) để chữ hiện sớm 1 frame so với tiếng */
+const at = (t: number, from: number) => Math.max(0, s(t) - s(from) - 1);
+
 /* ================================================================== */
-/* ÂM THANH                                                            */
+/* ÂM THANH (xem tools/make_sfx.py — toàn bộ là âm có cao độ, không nhiễu) */
 /* ================================================================== */
 const SFX: Array<[name: string, at: number, vol: number]> = [
-  ["pop", 0.1, 0.3],
-  ["pop", 0.35, 0.3],
-  ["pop", 0.6, 0.3],
-  ["pop", 0.82, 0.3],
-  ["pop", 1.06, 0.3],
-  ["hit", 1.3, 0.55],
-  ["pop", 2.0, 0.3],
-  ["pop", 2.24, 0.3],
-  ["pop", 2.48, 0.3],
-  ["pop", 2.72, 0.3],
-  ["buzz", 3.32, 0.4],
-  ["pop", 3.84, 0.3],
-  ["pop", 4.3, 0.3],
-  ["pop", 4.5, 0.3],
-  ["pop", 4.8, 0.3],
-  ["pop", 5.2, 0.3],
-  ["hit", 6.34, 1],
-  ["whoosh", 7.75, 0.55],
-  ["glitch", 8.95, 0.6],
-  ["whoosh", 9.12, 0.8],
-  ["sparkle", 9.3, 0.55],
-  ["ding", 9.3, 0.45],
-  ["whoosh", 10.22, 0.4],
-  ["pop", 10.5, 0.5],
-  ["whoosh", 11.32, 0.4],
-  ["pop", 11.1, 0.5],
-  ["pop", 11.7, 0.5],
-  ["whoosh", 12.3, 0.5],
-  ["whoosh", 12.52, 0.4],
+  // --- phần "PPT sơ sài": nốt marimba trầm theo từng cụm chữ ---
+  ["mb_57", W.da, 0.32],
+  ["mb_60", W.dung1, 0.32],
+  ["mb_64", W.pe1, 0.3],
+  ["mb_60", W.pe2, 0.3],
+  ["mb_57", W.te, 0.3],
+  ["nope", 1.76, 0.5],
+  ["mb_59", W.tren, 0.32],
+  ["mb_55", W.ma, 0.36],
+  ["mb_52", W.ket, 0.36],
+  ["mb_48", W.thi, 0.4],
+  ["tension", 5.72, 0.55],
+  ["stamp", W.tiet, 1],
+  ["womp", 7.5, 0.34],
+  ["fall", W.chuan, 0.4],
+  ["thud", 8.5, 0.5],
+  // --- chuyển cảnh sang phần "đầu tư" ---
+  ["riser", 8.8, 0.45],
+  ["glitch", 8.98, 0.4],
+  ["sparkle", 9.3, 0.5],
+  ["ding", 9.3, 0.42],
+  ["mb_72", W.thoi, 0.4],
+  ["mb_76", W.muon, 0.4],
+  ["pop", 10.5, 0.45],
+  ["pop", 11.1, 0.45],
+  ["pop", 11.7, 0.45],
+  ["swipe", 12.3, 0.35],
+  ["mb_79", W.lien, 0.4],
   ["pop", 12.45, 0.4],
-  ["ding", 13.05, 0.7],
-  ["whoosh", 13.95, 0.45],
-  ["pop", 14.05, 0.45],
-  ["whoosh", 18.25, 0.45],
-  ["pop", 18.35, 0.45],
-  ["whoosh", 21.55, 0.45],
-  ["pop", 21.65, 0.45],
-  ["whoosh", 24.35, 0.45],
-  ["pop", 24.45, 0.45],
-  ["whoosh", 27.95, 0.45],
-  ["pop", 28.05, 0.45],
-  ["sparkle", 33.35, 0.6],
-  ["ding", 33.4, 0.6],
-  ["whoosh", 36.0, 0.5],
-  ["ding", 36.85, 0.7],
+  ["click", 13.04, 0.6],
+  ["ding", 13.05, 0.5],
+  // --- phần footage không voice: mỗi giai đoạn một nốt sáng + swipe ---
+  ["swipe", 13.95, 0.32],
+  ["mb_72", 14.05, 0.4],
+  ["swipe", 18.25, 0.32],
+  ["mb_74", 18.35, 0.4],
+  ["swipe", 21.55, 0.32],
+  ["mb_76", 21.65, 0.4],
+  ["swipe", 24.35, 0.32],
+  ["mb_79", 24.45, 0.4],
+  ["swipe", 27.95, 0.32],
+  ["mb_81", 28.05, 0.4],
+  ["sparkle", 33.35, 0.55],
+  ["ding", 33.4, 0.5],
+  ["swipe", 36.0, 0.35],
+  ["click", 36.85, 0.6],
+  ["ding", 36.86, 0.55],
   ["sparkle", 37.3, 0.45],
 ];
 
 const Sound: React.FC = () => (
   <>
     <Audio src={staticFile("media/voice.mp3")} volume={1} />
-    {SFX.map(([name, at, vol], i) => (
-      <Sequence key={i} from={s(at)} durationInFrames={s(1.5)} layout="none">
+    {SFX.map(([name, t, vol], i) => (
+      <Sequence key={i} from={s(t)} durationInFrames={s(1.6)} layout="none">
         <Audio src={staticFile(`sfx/${name}.wav`)} volume={vol} />
       </Sequence>
     ))}
+    {/* nhạc nền: nhỏ khi còn voice, to hơn ở đoạn không voice */}
     <Sequence from={s(9.0)} durationInFrames={TOTAL_FRAMES - s(9.0)} layout="none">
       <Audio
         src={staticFile("sfx/bed.wav")}
-        volume={(f) =>
-          interpolate(f, [0, 20, TOTAL_FRAMES - s(9.0) - 45, TOTAL_FRAMES - s(9.0)], [0, 0.2, 0.2, 0], {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-          })
-        }
+        volume={(f) => {
+          const abs = f + s(9.0);
+          return interpolate(
+            abs,
+            [s(9.0), s(9.8), s(13.6), s(14.4), TOTAL_FRAMES - 45, TOTAL_FRAMES],
+            [0, 0.13, 0.13, 0.26, 0.26, 0],
+            { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+          );
+        }}
       />
     </Sequence>
   </>
@@ -111,7 +139,6 @@ const Sound: React.FC = () => (
 /* ================================================================== */
 /* Thành phần nhỏ                                                      */
 /* ================================================================== */
-/** Icon nảy ra ở vị trí tuyệt đối */
 const IconPop: React.FC<{
   at: number;
   name: React.ComponentProps<typeof Icon>["name"];
@@ -121,9 +148,9 @@ const IconPop: React.FC<{
   top?: number;
   right?: number;
   rot?: number;
-}> = ({ at, name, color, size = 120, left, top, right, rot = 0 }) => {
+}> = ({ at: t, name, color, size = 120, left, top, right, rot = 0 }) => {
   const frame = useCurrentFrame();
-  const p = useSpring(s(at), 8, 220);
+  const p = useSpring(s(t), 8, 220);
   return (
     <div
       style={{
@@ -131,7 +158,7 @@ const IconPop: React.FC<{
         left,
         top,
         right,
-        opacity: frame >= s(at) ? 1 : 0,
+        opacity: frame >= s(t) ? 1 : 0,
         transform: `scale(${p}) rotate(${rot + Math.sin(frame / 6) * 4}deg)`,
         filter: "drop-shadow(0 10px 0 rgba(0,0,0,.25))",
       }}
@@ -171,38 +198,57 @@ const BrandTag: React.FC = () => (
   </div>
 );
 
+/** Chữ trong con dấu: hiện đúng lúc voice đọc từ đó */
+const StampWord: React.FC<{ t: number; size: number; children: React.ReactNode }> = ({
+  t,
+  size,
+  children,
+}) => {
+  const frame = useCurrentFrame();
+  const p = useSpring(s(t) - 1, 9, 260);
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        fontSize: size,
+        visibility: frame >= s(t) - 1 ? "visible" : "hidden",
+        transform: `scale(${interpolate(p, [0, 1], [1.7, 1])})`,
+        opacity: Math.min(1, p * 2),
+        margin: "0 10px",
+      }}
+    >
+      {children}
+    </span>
+  );
+};
+
 /* ================================================================== */
-/* PHẦN 1 — "PPT sơ sài"                                               */
+/* PHẦN 1 — "PPT sơ sài" (slide học liệu thật)                          */
 /* ================================================================== */
 const BadWorld: React.FC = () => {
   const frame = useCurrentFrame();
   const enter = useSpring(0, 12, 160);
-  const fStamp = s(6.34);
-  const fFall = s(7.8);
+  const fStamp = s(W.tiet);
+  const fFall = s(W.chuan);
 
-  // rung tăng dần khi "tức", rung mạnh lúc đóng dấu
   const sh1 =
-    frame >= s(3.3) && frame < fStamp
-      ? shake(frame, interpolate(frame, [s(3.3), fStamp], [2, 10]))
+    frame >= s(W.ma) && frame < fStamp
+      ? shake(frame, interpolate(frame, [s(W.ma), fStamp], [2, 9]))
       : { x: 0, y: 0, r: 0 };
   const hf = frame - fStamp;
   const sh2 = hf >= 0 && hf < 14 ? shake(frame, 30 * (1 - hf / 14)) : { x: 0, y: 0, r: 0 };
 
-  // slide rơi + xoay sau khi "chuẩn bị sơ sài"
   const ff = Math.max(0, frame - fFall);
   const fallY = ff * ff * 3.6;
   const fallX = ff * 5;
   const fallR = ff * 1.7;
 
-  const push = 1 + (frame / s(7)) * 0.06;
-  const dark = interpolate(frame, [s(3.3), s(6.3)], [0, 0.45], {
+  const push = 1 + (frame / s(7)) * 0.04;
+  const dark = interpolate(frame, [s(W.ma), s(6.3)], [0, 0.45], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-
-  // dấu đỏ
   const st = useSpring(fStamp, 7, 260);
-  const stamp = frame >= fStamp;
 
   return (
     <AbsoluteFill
@@ -211,7 +257,6 @@ const BadWorld: React.FC = () => {
         overflow: "hidden",
       }}
     >
-      {/* họa tiết sọc mờ cho nền "giấy" */}
       <AbsoluteFill
         style={{
           opacity: 0.35,
@@ -225,102 +270,114 @@ const BadWorld: React.FC = () => {
         }}
       />
 
-      {/* tiêu đề động */}
-      <Chunk from={0.1} to={0.82}>
+      {/* ĐÃ NÓI LÀ */}
+      <Chunk from={W.da} to={W.dung1}>
         <Line>
-          <Pop at={0}>ĐÃ</Pop>
-          <Pop at={7}>NÓI</Pop>
-          <Pop at={15}>LÀ</Pop>
+          <Pop at={at(W.da, W.da)}>ĐÃ</Pop>
+          <Pop at={at(W.noi, W.da)}>NÓI</Pop>
+          <Pop at={at(W.la, W.da)}>LÀ</Pop>
         </Line>
       </Chunk>
-      <Chunk from={0.82} to={2.0}>
+      {/* ĐỪNG DÙNG P-P-T (mỗi chữ cái hiện đúng nhịp "pê – pê – tê") */}
+      <Chunk from={W.dung1} to={W.tren}>
         <Line>
-          <Pop at={0}>ĐỪNG</Pop>
-          <Pop at={7}>DÙNG</Pop>
+          <Pop at={at(W.dung1, W.dung1)}>ĐỪNG</Pop>
+          <Pop at={at(W.dung2, W.dung1)}>DÙNG</Pop>
         </Line>
-        <Line>
-          <div style={{ position: "relative" }}>
-            <Pop at={14} size={190} color={C.orange}>
-              PPT
+        <Line gap={8}>
+          <div style={{ position: "relative", display: "flex", gap: 8 }}>
+            <Pop at={at(W.pe1, W.dung1)} size={200} color={C.orange}>
+              P
             </Pop>
-            <BanOverlay at={24} />
+            <Pop at={at(W.pe2, W.dung1)} size={200} color={C.orange}>
+              P
+            </Pop>
+            <Pop at={at(W.te, W.dung1)} size={200} color={C.orange}>
+              T
+            </Pop>
+            <BanOverlay at={at(1.76, W.dung1)} />
           </div>
         </Line>
       </Chunk>
-      <Chunk from={2.0} to={3.15}>
+      {/* TRÊN HỌC LIỆU RỒI! */}
+      <Chunk from={W.tren} to={3.2}>
         <Line>
-          <Pop at={0}>TRÊN</Pop>
-          <Pop at={7}>HỌC</Pop>
+          <Pop at={at(W.tren, W.tren)}>TRÊN</Pop>
+          <Pop at={at(W.hoc, W.tren)}>HỌC</Pop>
         </Line>
         <Line>
-          <Pop at={14}>LIỆU</Pop>
-          <Pop at={22} color={C.yellow}>
+          <Pop at={at(W.lieu, W.tren)}>LIỆU</Pop>
+          <Pop at={at(W.roi, W.tren)} color={C.yellow}>
             RỒI!
           </Pop>
         </Line>
       </Chunk>
-      <Chunk from={3.3} to={4.5}>
+      {/* MÀ KHÔNG CHỊU NGHE */}
+      <Chunk from={W.ma} to={W.ket}>
         <Line>
-          <Pop at={0}>MÀ</Pop>
-          <Pop at={8}>KHÔNG</Pop>
+          <Pop at={at(W.ma, W.ma)}>MÀ</Pop>
+          <Pop at={at(W.khong, W.ma)}>KHÔNG</Pop>
         </Line>
         <Line>
-          <Pop at={16}>CHỊU</Pop>
-          <Pop at={28} color={C.red}>
+          <Pop at={at(W.chiu, W.ma)}>CHỊU</Pop>
+          <Pop at={at(W.nghe, W.ma)} color={C.red}>
             NGHE
           </Pop>
         </Line>
       </Chunk>
-      <Chunk from={4.5} to={7.7}>
+      {/* KẾT QUẢ THÌ… */}
+      <Chunk from={W.ket} to={W.tiet + 0.1}>
         <Line gap={22}>
-          <Pop at={0} size={104}>
+          <Pop at={at(W.ket, W.ket)} size={104}>
             KẾT
           </Pop>
-          <Pop at={9} size={104}>
+          <Pop at={at(W.qua, W.ket)} size={104}>
             QUẢ
           </Pop>
-          <Pop at={20} size={104} color={C.yellow}>
+          <Pop at={at(W.thi, W.ket)} size={104} color={C.yellow}>
             THÌ…
           </Pop>
         </Line>
       </Chunk>
-      <Chunk from={7.8} to={9.05}>
+      {/* CHUẨN BỊ SƠ SÀI */}
+      <Chunk from={W.chuan} to={9.05}>
         <Line>
-          <Pop at={0}>CHUẨN</Pop>
-          <Pop at={6}>BỊ</Pop>
+          <Pop at={at(W.chuan, W.chuan)}>CHUẨN</Pop>
+          <Pop at={at(W.bi, W.chuan)}>BỊ</Pop>
         </Line>
         <Line>
-          <Pop at={12} color={C.red}>
+          <Pop at={at(W.so, W.chuan)} color={C.red}>
             SƠ
           </Pop>
-          <Pop at={18} color={C.red}>
+          <Pop at={at(W.sai, W.chuan)} color={C.red}>
             SÀI
           </Pop>
         </Line>
       </Chunk>
 
-      {/* slide xấu */}
+      {/* slide học liệu thật, full bề ngang */}
       <div
         style={{
           position: "absolute",
-          left: 60,
-          top: 660,
-          width: 960,
-          height: 540,
+          left: 0,
+          top: CARD_TOP,
+          width: 1080,
+          height: CARD_H,
           transformOrigin: "50% 50%",
           transform: `translate(${sh1.x + sh2.x + fallX}px, ${
             sh1.y + sh2.y + fallY + (1 - enter) * 500
-          }px) rotate(${-2 + sh1.r + sh2.r + fallR}deg) scale(${push * (0.6 + 0.4 * enter)})`,
+          }px) rotate(${-1.5 + sh1.r + sh2.r + fallR}deg) scale(${push * (0.7 + 0.3 * enter)})`,
           boxShadow: "0 30px 70px rgba(0,0,0,.4)",
           opacity: enter,
         }}
       >
         <div
           style={{
-            width: 960,
-            height: 540,
+            width: "100%",
+            height: "100%",
             overflow: "hidden",
-            border: "6px solid #9aa0a6",
+            borderTop: "6px solid #9aa0a6",
+            borderBottom: "6px solid #9aa0a6",
             boxSizing: "border-box",
             background: "#000",
           }}
@@ -332,36 +389,42 @@ const BadWorld: React.FC = () => {
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         </div>
-        {stamp && (
+        {frame >= fStamp && (
           <div
             style={{
               position: "absolute",
               left: "50%",
               top: "50%",
-              transform: `translate(-50%,-50%) rotate(-13deg) scale(${interpolate(st, [0, 1], [3.2, 1])})`,
-              border: `16px solid ${C.red}`,
-              borderRadius: 26,
-              padding: "6px 34px 12px",
-              background: "rgba(255,255,255,.55)",
+              transform: `translate(-50%,-50%) rotate(-12deg) scale(${interpolate(st, [0, 1], [3.2, 1])})`,
+              border: `18px solid ${C.red}`,
+              borderRadius: 30,
+              padding: "10px 30px 16px",
+              background: "rgba(255,255,255,.62)",
               color: C.red,
               fontFamily: FONT,
               fontWeight: 900,
               textAlign: "center",
-              lineHeight: 1,
+              lineHeight: 1.02,
+              whiteSpace: "nowrap",
               opacity: Math.min(1, st * 1.6),
             }}
           >
-            <div style={{ fontSize: 66, letterSpacing: 2, marginTop: 8 }}>“TIẾT DẠY</div>
-            <div style={{ fontSize: 124, letterSpacing: 1 }}>CHƯA ĐẠT”</div>
+            <div>
+              <StampWord t={W.tiet} size={66}>“TIẾT</StampWord>
+              <StampWord t={W.day} size={66}>DẠY</StampWord>
+            </div>
+            <div>
+              <StampWord t={W.chua} size={116}>CHƯA</StampWord>
+              <StampWord t={W.dat} size={116}>ĐẠT”</StampWord>
+            </div>
           </div>
         )}
       </div>
 
-      {/* icon "chê" */}
-      <IconPop at={3.4} name="xCircle" color={C.red} left={34} top={590} rot={-14} />
-      <IconPop at={4.0} name="alert" color={C.yellow} right={34} top={570} rot={12} />
-      <IconPop at={4.9} name="thumbsDown" color={C.red} left={70} top={1250} rot={-10} />
-      <IconPop at={8.0} name="trash" color="#5b5646" left={450} top={1320} size={150} />
+      <IconPop at={3.4} name="xCircle" color={C.red} left={30} top={440} rot={-14} />
+      <IconPop at={4.0} name="alert" color={C.yellow} right={30} top={440} rot={12} />
+      <IconPop at={4.9} name="thumbsDown" color={C.red} left={60} top={1210} rot={-10} />
+      <IconPop at={8.0} name="trash" color="#5b5646" left={470} top={1260} size={150} />
 
       <Flash at={fStamp} color="#ff2a1a" max={0.7} dur={12} />
     </AbsoluteFill>
@@ -369,9 +432,9 @@ const BadWorld: React.FC = () => {
 };
 
 /** Vòng cấm vẽ lên chữ PPT */
-const BanOverlay: React.FC<{ at: number }> = ({ at }) => {
+const BanOverlay: React.FC<{ at: number }> = ({ at: a }) => {
   const frame = useCurrentFrame();
-  const p = interpolate(frame, [at, at + 8], [0, 1], {
+  const p = interpolate(frame, [a, a + 8], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: Easing.out(Easing.back(2)),
@@ -387,20 +450,15 @@ const BanOverlay: React.FC<{ at: number }> = ({ at }) => {
         filter: "drop-shadow(0 8px 0 rgba(0,0,0,.3))",
       }}
     >
-      <Icon name="ban" size={300} color={C.red} stroke={2.4} />
+      <Icon name="ban" size={320} color={C.red} stroke={2.4} />
     </div>
   );
 };
 
 /* ================================================================== */
-/* PHẦN 2 — "Đầu tư tiết dạy"                                          */
+/* PHẦN 2 — footage chính thức, phát nguyên bản                         */
 /* ================================================================== */
-/** Phát nguyên bản, không cắt, không đổi tốc độ; giữ khung cuối khi hết clip. */
-const FullClip: React.FC<{ src: string; frames: number; flash?: boolean }> = ({
-  src,
-  frames,
-  flash,
-}) => {
+const FullClip: React.FC<{ src: string; frames: number }> = ({ src, frames }) => {
   const frame = useCurrentFrame();
   return (
     <AbsoluteFill>
@@ -411,7 +469,6 @@ const FullClip: React.FC<{ src: string; frames: number; flash?: boolean }> = ({
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
       </Freeze>
-      {flash && <Flash at={0} dur={5} max={0.5} />}
     </AbsoluteFill>
   );
 };
@@ -422,9 +479,9 @@ const Chip: React.FC<{
   color: string;
   top: number;
   children: React.ReactNode;
-}> = ({ at, icon, color, top, children }) => {
+}> = ({ at: t, icon, color, top, children }) => {
   const frame = useCurrentFrame();
-  const p = useSpring(s(at), 12, 200);
+  const p = useSpring(s(t), 12, 200);
   const out = interpolate(frame, [s(12.3), s(12.3) + 8], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -439,7 +496,7 @@ const Chip: React.FC<{
         right: 0,
         display: "flex",
         justifyContent: "center",
-        opacity: frame >= s(at) ? 1 - out : 0,
+        opacity: frame >= s(t) ? 1 - out : 0,
         transform: `translateX(${(1 - p) * 600 - out * 900}px)`,
       }}
     >
@@ -474,6 +531,7 @@ const Chip: React.FC<{
   );
 };
 
+/** Trang trí hai bên tiêu đề (không đè khung footage) */
 const Decor: React.FC = () => {
   const frame = useCurrentFrame();
   const items: Array<{
@@ -484,10 +542,8 @@ const Decor: React.FC = () => {
     z: number;
     d: number;
   }> = [
-    { n: "sparkles", x: 40, y: 330, c: C.yellow, z: 90, d: 0 },
-    { n: "star", x: 930, y: 380, c: C.pink, z: 70, d: 6 },
-    { n: "sparkles", x: 920, y: 1180, c: C.mint, z: 80, d: 12 },
-    { n: "star", x: 50, y: 1140, c: C.cyan, z: 64, d: 3 },
+    { n: "sparkles", x: 14, y: 470, c: C.yellow, z: 70, d: 0 },
+    { n: "star", x: 996, y: 485, c: C.pink, z: 56, d: 6 },
   ];
   return (
     <>
@@ -499,7 +555,7 @@ const Decor: React.FC = () => {
             style={{
               position: "absolute",
               left: it.x,
-              top: it.y + Math.sin(frame / 14 + i) * 14,
+              top: it.y + Math.sin(frame / 14 + i) * 10,
               transform: `scale(${p}) rotate(${Math.sin(frame / 20 + i) * 14}deg)`,
               opacity: frame >= s(9.5) ? 1 : 0,
             }}
@@ -512,25 +568,36 @@ const Decor: React.FC = () => {
   );
 };
 
-const CtaBlock: React.FC = () => {
+/** Nút kêu gọi + con trỏ nhấp. `to` = lúc thoát (nếu có). */
+const CtaBlock: React.FC<{ from: number; to?: number; clickAt: number; subAt: number }> = ({
+  from,
+  to,
+  clickAt,
+  subAt,
+}) => {
   const frame = useCurrentFrame();
-  const p = useSpring(s(12.4), 10, 170);
+  const p = useSpring(s(from), 10, 170);
   const pulse = 1 + Math.sin(frame / 5) * 0.015;
-  // hai lần con trỏ bay vào nhấp nút: giữa video và cuối video
-  const flyAt = frame >= s(36.2) ? 36.4 : 12.55;
-  const clickAt = flyAt + 0.45;
-  const cl = (a: number[], o: number[]) =>
-    interpolate(frame, a, o, {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-      easing: Easing.out(Easing.cubic),
-    });
+  const out = to
+    ? interpolate(frame, [s(to) - 8, s(to)], [0, 1], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+        easing: Easing.in(Easing.cubic),
+      })
+    : 0;
+  const flyAt = clickAt - 0.45;
   const click = interpolate(frame, [s(clickAt), s(clickAt + 0.06), s(clickAt + 0.2)], [1, 0.92, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const cx = cl([s(flyAt), s(clickAt)], [900, 640]);
-  const cy = cl([s(flyAt), s(clickAt)], [1560, 1350]);
+  const mv = (a: number, b: number) =>
+    interpolate(frame, [s(flyAt), s(clickAt)], [a, b], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.out(Easing.cubic),
+    });
+  const cx = mv(900, 640);
+  const cy = mv(1560, 1340);
   const ripple = interpolate(frame - s(clickAt + 0.04), [0, 16], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -539,17 +606,17 @@ const CtaBlock: React.FC = () => {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const sub = useSpring(s(13.9), 14, 140);
+  const sub = useSpring(s(subAt), 14, 140);
 
-  if (frame < s(12.4)) return null;
+  if (frame < s(from) || (to && frame >= s(to))) return null;
   return (
-    <>
+    <div style={{ opacity: 1 - out, transform: `translateY(${out * 260}px)` }}>
       <div
         style={{
           position: "absolute",
           left: 0,
           right: 0,
-          top: 1270,
+          top: 1262,
           display: "flex",
           justifyContent: "center",
           transform: `scale(${p * click * pulse})`,
@@ -572,7 +639,6 @@ const CtaBlock: React.FC = () => {
           </span>
         </div>
       </div>
-      {/* sóng khi nhấp */}
       {ripple > 0 && ripple < 1 && (
         <div
           style={{
@@ -603,7 +669,7 @@ const CtaBlock: React.FC = () => {
           position: "absolute",
           left: 0,
           right: 0,
-          top: 1470,
+          top: 1462,
           textAlign: "center",
           fontFamily: FONT,
           fontWeight: 700,
@@ -615,10 +681,11 @@ const CtaBlock: React.FC = () => {
       >
         Thiết kế PPT thao giảng <span style={{ color: C.yellow }}>•</span> Game tiếng Anh
       </div>
-    </>
+    </div>
   );
 };
 
+/** Tiêu đề giai đoạn (trên) */
 const Stage: React.FC<{
   from: number;
   to: number;
@@ -644,10 +711,84 @@ const Stage: React.FC<{
   </Chunk>
 );
 
+/** Thẻ mô tả nội dung đang chiếu (dưới khung footage, vì đoạn này không có voice) */
+const Desc: React.FC<{
+  from: number;
+  to: number;
+  icon: React.ComponentProps<typeof Icon>["name"];
+  color: string;
+  l1: string;
+  l2: string;
+}> = ({ from, to, icon, color, l1, l2 }) => {
+  const frame = useCurrentFrame();
+  const p = useSpring(s(from) + 4, 12, 170);
+  const out = interpolate(frame, [s(to) - 6, s(to)], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  if (frame < s(from) || frame >= s(to)) return null;
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: 40,
+        right: 40,
+        top: 1226,
+        opacity: (1 - out) * Math.min(1, p * 1.5),
+        transform: `translateY(${(1 - p) * 160 + out * 60}px)`,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 26,
+          padding: "22px 34px 22px 22px",
+          borderRadius: 48,
+          background: "rgba(255,255,255,.14)",
+          border: `4px solid ${color}`,
+          backdropFilter: "blur(8px)",
+        }}
+      >
+        <div
+          style={{
+            flex: "0 0 auto",
+            width: 112,
+            height: 112,
+            borderRadius: 999,
+            background: color,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Icon name={icon} size={66} color={C.navy} stroke={2.3} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+          <span style={{ fontFamily: FONT, fontWeight: 900, fontSize: 48, color: "#fff", whiteSpace: "nowrap" }}>
+            {l1}
+          </span>
+          <span
+            style={{
+              fontFamily: FONT,
+              fontWeight: 600,
+              fontSize: 37,
+              color: "rgba(255,255,255,.9)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {l2}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PremiumWorld: React.FC = () => {
   const frame = useCurrentFrame();
   const cardP = useSpring(s(9.24), 13, 120);
-  const bob = frame > s(10) ? Math.sin(frame / 16) * 7 : 0;
+  const bob = frame > s(10) && frame < s(34) ? Math.sin(frame / 16) * 4 : 0;
   const r = interpolate(frame, [s(9.2), s(9.8)], [0, 1900], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -668,7 +809,6 @@ const PremiumWorld: React.FC = () => {
           overflow: "hidden",
         }}
       >
-        {/* blob sáng chuyển động */}
         {[0, 1, 2].map((i) => (
           <div
             key={i}
@@ -694,49 +834,53 @@ const PremiumWorld: React.FC = () => {
           }}
         />
 
-        <Chunk from={9.24} to={10.2}>
+        {/* --- tiêu đề theo voice --- */}
+        <Chunk from={W.thoi} to={10.22}>
           <Line>
-            <Pop at={0}>THÔI</Pop>
-            <Pop at={6}>ĐỪNG</Pop>
+            <Pop at={at(W.thoi, W.thoi)}>THÔI</Pop>
+            <Pop at={at(W.dung3, W.thoi)}>ĐỪNG</Pop>
           </Line>
           <Line>
-            <Pop at={12} size={150} color={C.mint}>
+            <Pop at={at(W.lo, W.thoi)} size={150} color={C.mint}>
               LO!
             </Pop>
           </Line>
         </Chunk>
-        <Chunk from={10.24} to={12.3}>
+        <Chunk from={W.muon} to={12.38}>
           <Line>
-            <Pop at={0}>MUỐN</Pop>
-            <Pop at={6}>ĐẦU</Pop>
-            <Pop at={12}>TƯ</Pop>
+            <Pop at={at(W.muon, W.muon)}>MUỐN</Pop>
+            <Pop at={at(W.dau, W.muon)}>ĐẦU</Pop>
+            <Pop at={at(W.tu, W.muon)}>TƯ</Pop>
           </Line>
-          <Line>
-            <Pop at={18} color={C.yellow}>
+          <Line gap={20}>
+            <Pop at={at(W.tiet2, W.muon)} size={100} color={C.yellow}>
               TIẾT
             </Pop>
-            <Pop at={26} color={C.yellow}>
-              DẠY?
+            <Pop at={at(W.day2, W.muon)} size={100} color={C.yellow}>
+              DẠY
+            </Pop>
+            <Pop at={at(W.thi2, W.muon)} size={100}>
+              THÌ…
             </Pop>
           </Line>
         </Chunk>
-        <Chunk from={12.4} to={13.95}>
+        <Chunk from={W.lien} to={13.95}>
           <Line>
-            <Pop at={0} size={130} color={C.mint}>
+            <Pop at={at(W.lien, W.lien)} size={130} color={C.mint}>
               LIÊN
             </Pop>
-            <Pop at={11} size={130} color={C.mint}>
+            <Pop at={at(W.he, W.lien)} size={130} color={C.mint}>
               HỆ
             </Pop>
           </Line>
           <Line>
-            <Pop at={19} size={170} color={C.pink}>
+            <Pop at={at(W.tui, W.lien)} size={170} color={C.pink}>
               TUI!
             </Pop>
           </Line>
         </Chunk>
 
-        {/* nhãn các giai đoạn của tiết dạy, khớp với footage */}
+        {/* --- tiêu đề giai đoạn (đoạn không voice) --- */}
         <Stage from={14.0} to={18.2} icon="gamepad" color={C.cyan} l1="KHỞI ĐỘNG" l2="BẰNG TRÒ CHƠI" />
         <Stage from={18.3} to={21.5} icon="book" color={C.yellow} l1="VÀO BÀI MỚI" l2="UNIT 5!" />
         <Stage from={21.6} to={24.3} icon="sparkles" color={C.pink} l1="HỌC TỪ MỚI" l2="CÓ HÌNH THẬT" />
@@ -762,20 +906,19 @@ const PremiumWorld: React.FC = () => {
           </Line>
         </Chunk>
 
-        {/* khung chiếu slide thật */}
+        {/* --- khung footage: rộng hết bề ngang 1080, không bo góc, không crop --- */}
         <div
           style={{
             position: "absolute",
-            left: 60,
-            top: 640,
-            width: 960,
-            height: 540,
-            borderRadius: 40,
+            left: 0,
+            top: CARD_TOP,
+            width: 1080,
+            height: CARD_H,
             overflow: "hidden",
-            transform: `translateY(${(1 - cardP) * 1300 + bob}px) rotate(${(1 - cardP) * 9}deg) scale(${
-              0.85 + 0.15 * cardP
+            transform: `translateY(${(1 - cardP) * 1300 + bob}px) rotate(${(1 - cardP) * 6}deg) scale(${
+              0.9 + 0.1 * cardP
             })`,
-            boxShadow: `0 0 0 9px #fff, 0 0 90px rgba(61,245,181,.6), 0 50px 90px rgba(0,0,0,.55)`,
+            boxShadow: `0 -7px 0 #fff, 0 7px 0 #fff, 0 0 100px rgba(61,245,181,.55), 0 50px 90px rgba(0,0,0,.55)`,
             background: "#000",
           }}
         >
@@ -789,24 +932,34 @@ const PremiumWorld: React.FC = () => {
 
         <Decor />
 
-        <Chip at={10.5} icon="sparkles" color={C.yellow} top={1230}>
+        <Chip at={10.5} icon="sparkles" color={C.yellow} top={1236}>
           Hiệu ứng mượt, không rối
         </Chip>
-        <Chip at={11.1} icon="image" color={C.pink} top={1336}>
+        <Chip at={11.1} icon="image" color={C.pink} top={1342}>
           Ảnh minh hoạ đẹp mắt
         </Chip>
-        <Chip at={11.7} icon="checkSquare" color={C.mint} top={1442}>
+        <Chip at={11.7} icon="checkSquare" color={C.mint} top={1448}>
           Đúng cấu trúc tiết dạy
         </Chip>
 
-        <CtaBlock />
+        {/* --- mô tả nội dung footage (dưới khung) --- */}
+        <Desc from={14.0} to={18.2} icon="gamepad" color={C.cyan} l1="Hidden Picture" l2="Trò chơi đoán tranh khởi động" />
+        <Desc from={18.3} to={21.5} icon="book" color={C.yellow} l1="Unit 5: Food and Drink" l2="Lesson 1: Getting started" />
+        <Desc from={21.6} to={24.3} icon="sparkles" color={C.pink} l1="New word" l2="Gợi mở từ mới bằng hình ảnh" />
+        <Desc from={24.4} to={27.9} icon="book" color={C.mint} l1="Mineral (a)  /ˈmɪnərəl/" l2="Chữ, phiên âm, nghĩa hiện lần lượt" />
+        <Desc from={28.0} to={33.2} icon="droplet" color={C.cyan} l1="Lemon + Water + Sugar = ?" l2="Học sinh đoán đồ uống từ hình" />
+        <Desc from={33.4} to={35.95} icon="sparkles" color={C.yellow} l1="Lemonade (n)  /ˌleməˈneɪd/" l2="Nước chanh — kèm âm thanh mẫu" />
+
+        {/* --- nút kêu gọi: giữa video (cùng lời thoại) và cuối video --- */}
+        <CtaBlock from={12.4} to={14.0} clickAt={13.0} subAt={13.2} />
+        <CtaBlock from={36.0} clickAt={36.85} subAt={36.5} />
+
         <Confetti start={s(9.3)} />
         <Confetti start={s(33.4)} count={40} />
         <Confetti start={s(36.9)} count={40} />
         <Flash at={s(9.24)} dur={10} max={0.9} />
       </AbsoluteFill>
 
-      {/* vòng sáng viền iris */}
       <div
         style={{
           position: "absolute",
@@ -825,7 +978,7 @@ const PremiumWorld: React.FC = () => {
   );
 };
 
-/** Hiệu ứng glitch RGB ngay trước khi chuyển cảnh */
+/** Glitch RGB trước khi chuyển cảnh */
 const Glitch: React.FC = () => {
   const frame = useCurrentFrame();
   if (frame < s(8.95) || frame > s(9.3)) return null;
@@ -833,8 +986,7 @@ const Glitch: React.FC = () => {
   return (
     <AbsoluteFill style={{ pointerEvents: "none", mixBlendMode: "screen" }}>
       {Array.from({ length: 9 }).map((_, i) => {
-        const on = random(`g${i}-${k}`) > 0.35;
-        if (!on) return null;
+        if (random(`g${i}-${k}`) <= 0.35) return null;
         const y = random(`gy${i}-${k}`) * 1800;
         const h = 30 + random(`gh${i}-${k}`) * 150;
         const x = (random(`gx${i}-${k}`) - 0.5) * 180;
@@ -856,9 +1008,6 @@ const Glitch: React.FC = () => {
   );
 };
 
-/* ================================================================== */
-/* GỘP                                                                 */
-/* ================================================================== */
 export const MyComposition: React.FC = () => {
   const frame = useCurrentFrame();
   return (

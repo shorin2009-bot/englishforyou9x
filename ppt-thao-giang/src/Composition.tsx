@@ -3,6 +3,7 @@ import {
   AbsoluteFill,
   Audio,
   Easing,
+  Freeze,
   OffthreadVideo,
   Sequence,
   interpolate,
@@ -10,7 +11,6 @@ import {
   staticFile,
   useCurrentFrame,
 } from "remotion";
-import { BadSlide } from "./BadSlide";
 import {
   C,
   Chunk,
@@ -25,8 +25,14 @@ import {
   useSpring,
 } from "./kit";
 
-/** Tổng thời lượng: 15.5 giây @30fps */
-export const TOTAL_FRAMES = s(15.5);
+/** Tổng thời lượng ≈ 39.7s @30fps */
+export const A_FRAMES = 365; // footage chính thức 1 (12.17s), giữ nguyên
+export const B_FRAMES = 503; // footage chính thức 2 (16.77s), giữ nguyên
+export const A_START = s(9.24);
+export const B_START = A_START + A_FRAMES;
+export const HOLD = 45; // giữ khung cuối 1.5s cho end card
+export const TOTAL_FRAMES = B_START + B_FRAMES + HOLD;
+const END = TOTAL_FRAMES / 30;
 
 /* ================================================================== */
 /* ÂM THANH                                                            */
@@ -63,7 +69,21 @@ const SFX: Array<[name: string, at: number, vol: number]> = [
   ["whoosh", 12.52, 0.4],
   ["pop", 12.45, 0.4],
   ["ding", 13.05, 0.7],
-  ["sparkle", 14.0, 0.45],
+  ["whoosh", 13.95, 0.45],
+  ["pop", 14.05, 0.45],
+  ["whoosh", 18.25, 0.45],
+  ["pop", 18.35, 0.45],
+  ["whoosh", 21.55, 0.45],
+  ["pop", 21.65, 0.45],
+  ["whoosh", 24.35, 0.45],
+  ["pop", 24.45, 0.45],
+  ["whoosh", 27.95, 0.45],
+  ["pop", 28.05, 0.45],
+  ["sparkle", 33.35, 0.6],
+  ["ding", 33.4, 0.6],
+  ["whoosh", 36.0, 0.5],
+  ["ding", 36.85, 0.7],
+  ["sparkle", 37.3, 0.45],
 ];
 
 const Sound: React.FC = () => (
@@ -74,11 +94,11 @@ const Sound: React.FC = () => (
         <Audio src={staticFile(`sfx/${name}.wav`)} volume={vol} />
       </Sequence>
     ))}
-    <Sequence from={s(9.0)} durationInFrames={s(6.5)} layout="none">
+    <Sequence from={s(9.0)} durationInFrames={TOTAL_FRAMES - s(9.0)} layout="none">
       <Audio
         src={staticFile("sfx/bed.wav")}
         volume={(f) =>
-          interpolate(f, [0, 20, s(6.5) - 30, s(6.5)], [0, 0.2, 0.2, 0], {
+          interpolate(f, [0, 20, TOTAL_FRAMES - s(9.0) - 45, TOTAL_FRAMES - s(9.0)], [0, 0.2, 0.2, 0], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           })
@@ -295,7 +315,23 @@ const BadWorld: React.FC = () => {
           opacity: enter,
         }}
       >
-        <BadSlide />
+        <div
+          style={{
+            width: 960,
+            height: 540,
+            overflow: "hidden",
+            border: "6px solid #9aa0a6",
+            boxSizing: "border-box",
+            background: "#000",
+          }}
+        >
+          <OffthreadVideo
+            src={staticFile("media/hocLieu.mp4")}
+            trimBefore={s(1.2)}
+            muted
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        </div>
         {stamp && (
           <div
             style={{
@@ -359,28 +395,23 @@ const BanOverlay: React.FC<{ at: number }> = ({ at }) => {
 /* ================================================================== */
 /* PHẦN 2 — "Đầu tư tiết dạy"                                          */
 /* ================================================================== */
-const CLIPS = [
-  { from: 9.24, dur: 1.0, src: "media/introA.mp4", start: 0.2 },
-  { from: 10.24, dur: 1.1, src: "media/introA.mp4", start: 2.4 },
-  { from: 11.34, dur: 1.2, src: "media/vocabB.mp4", start: 9.3 },
-  { from: 12.54, dur: 3.0, src: "media/vocabB.mp4", start: 12.6 },
-];
-
-const ClipLayer: React.FC<{ src: string; start: number }> = ({ src, start }) => {
+/** Phát nguyên bản, không cắt, không đổi tốc độ; giữ khung cuối khi hết clip. */
+const FullClip: React.FC<{ src: string; frames: number; flash?: boolean }> = ({
+  src,
+  frames,
+  flash,
+}) => {
   const frame = useCurrentFrame();
-  const punch = interpolate(frame, [0, 8], [1.12, 1], {
-    extrapolateRight: "clamp",
-    easing: Easing.out(Easing.cubic),
-  });
   return (
-    <AbsoluteFill style={{ transform: `scale(${punch})` }}>
-      <OffthreadVideo
-        src={staticFile(src)}
-        trimBefore={s(start)}
-        muted
-        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-      />
-      <Flash at={0} dur={6} max={0.7} />
+    <AbsoluteFill>
+      <Freeze frame={Math.min(frame, frames - 1)}>
+        <OffthreadVideo
+          src={staticFile(src)}
+          muted
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      </Freeze>
+      {flash && <Flash at={0} dur={5} max={0.5} />}
     </AbsoluteFill>
   );
 };
@@ -484,23 +515,27 @@ const Decor: React.FC = () => {
 const CtaBlock: React.FC = () => {
   const frame = useCurrentFrame();
   const p = useSpring(s(12.4), 10, 170);
-  const click = interpolate(frame, [s(13.0), s(13.06), s(13.2)], [1, 0.92, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
   const pulse = 1 + Math.sin(frame / 5) * 0.015;
-  // con trỏ bay vào và nhấp
-  const cx = interpolate(frame, [s(12.55), s(13.0)], [900, 640], {
+  // hai lần con trỏ bay vào nhấp nút: giữa video và cuối video
+  const flyAt = frame >= s(36.2) ? 36.4 : 12.55;
+  const clickAt = flyAt + 0.45;
+  const cl = (a: number[], o: number[]) =>
+    interpolate(frame, a, o, {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.out(Easing.cubic),
+    });
+  const click = interpolate(frame, [s(clickAt), s(clickAt + 0.06), s(clickAt + 0.2)], [1, 0.92, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
-    easing: Easing.out(Easing.cubic),
   });
-  const cy = interpolate(frame, [s(12.55), s(13.0)], [1560, 1350], {
+  const cx = cl([s(flyAt), s(clickAt)], [900, 640]);
+  const cy = cl([s(flyAt), s(clickAt)], [1560, 1350]);
+  const ripple = interpolate(frame - s(clickAt + 0.04), [0, 16], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
-    easing: Easing.out(Easing.cubic),
   });
-  const ripple = interpolate(frame - s(13.04), [0, 16], [0, 1], {
+  const curOp = interpolate(frame, [s(flyAt), s(flyAt) + 3, s(clickAt + 0.3), s(clickAt + 0.5)], [0, 1, 1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
@@ -558,7 +593,7 @@ const CtaBlock: React.FC = () => {
           left: cx,
           top: cy,
           filter: "drop-shadow(0 8px 6px rgba(0,0,0,.45))",
-          opacity: frame >= s(12.55) ? interpolate(frame, [s(13.3), s(13.5)], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 0,
+          opacity: curOp,
         }}
       >
         <Icon name="cursor" size={92} color="#111" fill="#fff" stroke={1.6} />
@@ -583,6 +618,31 @@ const CtaBlock: React.FC = () => {
     </>
   );
 };
+
+const Stage: React.FC<{
+  from: number;
+  to: number;
+  icon: React.ComponentProps<typeof Icon>["name"];
+  color: string;
+  l1: string;
+  l2: string;
+}> = ({ from, to, icon, color, l1, l2 }) => (
+  <Chunk from={from} to={to}>
+    <Line gap={20}>
+      <div style={{ marginTop: 6 }}>
+        <Icon name={icon} size={96} color={color} stroke={2.4} />
+      </div>
+      <Pop at={0} size={104}>
+        {l1}
+      </Pop>
+    </Line>
+    <Line>
+      <Pop at={7} size={104} color={color}>
+        {l2}
+      </Pop>
+    </Line>
+  </Chunk>
+);
 
 const PremiumWorld: React.FC = () => {
   const frame = useCurrentFrame();
@@ -660,7 +720,7 @@ const PremiumWorld: React.FC = () => {
             </Pop>
           </Line>
         </Chunk>
-        <Chunk from={12.4} to={15.5}>
+        <Chunk from={12.4} to={13.95}>
           <Line>
             <Pop at={0} size={130} color={C.mint}>
               LIÊN
@@ -676,6 +736,32 @@ const PremiumWorld: React.FC = () => {
           </Line>
         </Chunk>
 
+        {/* nhãn các giai đoạn của tiết dạy, khớp với footage */}
+        <Stage from={14.0} to={18.2} icon="gamepad" color={C.cyan} l1="KHỞI ĐỘNG" l2="BẰNG TRÒ CHƠI" />
+        <Stage from={18.3} to={21.5} icon="book" color={C.yellow} l1="VÀO BÀI MỚI" l2="UNIT 5!" />
+        <Stage from={21.6} to={24.3} icon="sparkles" color={C.pink} l1="HỌC TỪ MỚI" l2="CÓ HÌNH THẬT" />
+        <Stage from={24.4} to={27.9} icon="book" color={C.mint} l1="PHIÊN ÂM" l2="VÀ NGHĨA RÕ" />
+        <Stage from={28.0} to={33.2} icon="droplet" color={C.cyan} l1="ĐOÁN NHANH" l2="ĐỒ UỐNG GÌ?" />
+        <Chunk from={33.4} to={35.9}>
+          <Line>
+            <Pop at={0} size={150} color={C.yellow}>
+              LEMONADE!
+            </Pop>
+          </Line>
+        </Chunk>
+        <Chunk from={36.0} to={END}>
+          <Line>
+            <Pop at={0} size={130} color={C.mint}>
+              LIÊN HỆ
+            </Pop>
+          </Line>
+          <Line>
+            <Pop at={8} size={170} color={C.pink}>
+              TUI NHÉ!
+            </Pop>
+          </Line>
+        </Chunk>
+
         {/* khung chiếu slide thật */}
         <div
           style={{
@@ -683,7 +769,7 @@ const PremiumWorld: React.FC = () => {
             left: 60,
             top: 640,
             width: 960,
-            height: 516,
+            height: 540,
             borderRadius: 40,
             overflow: "hidden",
             transform: `translateY(${(1 - cardP) * 1300 + bob}px) rotate(${(1 - cardP) * 9}deg) scale(${
@@ -693,11 +779,12 @@ const PremiumWorld: React.FC = () => {
             background: "#000",
           }}
         >
-          {CLIPS.map((c, i) => (
-            <Sequence key={i} from={s(c.from)} durationInFrames={s(c.dur)} layout="none">
-              <ClipLayer src={c.src} start={c.start} />
-            </Sequence>
-          ))}
+          <Sequence from={A_START} durationInFrames={A_FRAMES} layout="none">
+            <FullClip src="media/introA.mp4" frames={A_FRAMES} />
+          </Sequence>
+          <Sequence from={B_START} durationInFrames={B_FRAMES + HOLD} layout="none">
+            <FullClip src="media/vocabB.mp4" frames={B_FRAMES} />
+          </Sequence>
         </div>
 
         <Decor />
@@ -714,6 +801,8 @@ const PremiumWorld: React.FC = () => {
 
         <CtaBlock />
         <Confetti start={s(9.3)} />
+        <Confetti start={s(33.4)} count={40} />
+        <Confetti start={s(36.9)} count={40} />
         <Flash at={s(9.24)} dur={10} max={0.9} />
       </AbsoluteFill>
 
